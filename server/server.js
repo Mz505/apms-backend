@@ -27,7 +27,7 @@ app.use(helmet());
 //   credentials: true
 // }));
 const allowedOrigins = [
-  'http://localhost:5173',
+  
   'https://apms-frontend-production.up.railway.app'
 ];
 
