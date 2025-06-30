@@ -57,11 +57,18 @@ app.get('/', (req, res) => {
 });
 
 // Error handling middleware
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).json({ 
+//     message: 'Something went wrong!', 
+//     error: process.env.NODE_ENV === 'production' ? {} : err.stack 
+//   });
+// });
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ 
     message: 'Something went wrong!', 
-    error: process.env.NODE_ENV === 'production' ? {} : err.stack 
+    error: err.stack // SHOW the error for now
   });
 });
 
