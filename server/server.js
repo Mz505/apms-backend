@@ -27,24 +27,13 @@ app.use(helmet());
 //   credentials: true
 // }));
 const allowedOrigins = [
-  
-  'https://apms-frontend-production.up.railway.app'
+  'https://apms-frontend-production.up.railway.app',
+  'https://68624c2cad3d18efe2fa10a7--cerulean-quokka-b4a55e.netlify.app'
 ];
 
+
 app.use(cors({
-  origin: function (origin, callback) {
-    console.log('Request Origin:', origin);
-
-    // Allow requests with no origin (like curl, mobile apps)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      console.error('Blocked by CORS:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all for now
   credentials: true
 }));
 
