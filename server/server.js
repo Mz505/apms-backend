@@ -33,10 +33,13 @@ const allowedOrigins = [
 
 
 app.use(cors({
-  origin: true, // Allow all for now
+  origin: (origin, callback) => {
+    console.log('Request Origin:', origin);
+    // Accept all for now, but you can validate origin here if needed
+    callback(null, true);
+  },
   credentials: true
 }));
-
 
 // Rate limiting
 const limiter = rateLimit({
