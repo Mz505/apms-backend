@@ -52,6 +52,9 @@ app.use('/api/users', userRoutes);
 app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'APMS API is running successfully!' });
 });
+app.get('/', (req, res) => {
+  res.status(200).json({ message: 'Backend is running but no route is defined at root. Use /api/* endpoints.' });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
