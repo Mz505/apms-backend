@@ -19,7 +19,7 @@ router.get('/inventory', authenticateToken, [
     }
 
     const { category, lowStock, expiring } = req.query;
-    
+
     // Build query
     const query = { isActive: true };
 
@@ -74,7 +74,7 @@ router.get('/issuances', authenticateToken, [
     }
 
     const { startDate, endDate, issuedTo } = req.query;
-    
+
     // Build query
     const query = {};
 
@@ -89,9 +89,11 @@ router.get('/issuances', authenticateToken, [
     }
 
     const issuances = await Issuance.find(query)
-      .populate('medicineId', 'name category price')
+      .populate('issuedMedicines.medicineId', 'name category price')
       .populate('issuedBy', 'name')
       .sort({ issuedAt: -1 });
+
+
 
     // Calculate summary
     const totalIssuances = issuances.length;
@@ -175,3 +177,96 @@ router.get('/expiry', authenticateToken, async (req, res) => {
 });
 
 export default router;
+
+
+
+// import express from 'express';
+// import { query, validationResult } from 'express-validator';
+// import Medicine from '../models/Medicine.js';
+// import Issuance from '../models/Issuance.js';
+// import { authenticateToken } from '../middleware/auth.js';
+
+// const router = express.Router();
+
+// // ... (inventory and expiry routes remain unchanged)
+
+// // Generate issuance report
+// router.get('/issuances', authenticateToken, [
+//   query('startDate').optional().isISO8601().withMessage('Valid start date required'),
+//   query('endDate').optional().isISO8601().withMessage('Valid end date required'),
+//   query('issuedTo').optional().isIn(['GIZ Guest', 'AZI Guest', 'Employee']).withMessage('Invalid issuedTo value')
+// ], async (req, res) => {
+//   try {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+
+//     const { startDate, endDate, issuedTo } = req.query;
+
+//     const query = {};
+
+//     if (startDate || endDate) {
+//       query.issuedAt = {};
+//       if (startDate) query.issuedAt.$gte = new Date(startDate);
+//       if (endDate) query.issuedAt.$lte = new Date(endDate);
+//     }
+
+//     if (issuedTo) {
+//       query.issuedTo = issuedTo;
+//     }
+
+//     const issuances = await Issuance.find(query)
+//       .populate({
+//         path: 'issuedMedicines.medicineId',
+//         select: 'name category price',
+//         strictPopulate: false
+//       })
+//       .populate('issuedBy', 'name')
+//       .sort({ issuedAt: -1 });
+
+//     // Calculate totals
+//     let totalQuantity = 0;
+//     let totalValue = 0;
+
+//     issuances.forEach(iss => {
+//       iss.issuedMedicines.forEach(med => {
+//         totalQuantity += med.quantityIssued;
+//         totalValue += (med.quantityIssued * (med.medicineId?.price || 0));
+//       });
+//     });
+
+//     // Group by recipient type
+//     const groupedByType = {};
+//     issuances.forEach(iss => {
+//       const type = iss.issuedTo;
+//       if (!groupedByType[type]) {
+//         groupedByType[type] = { count: 0, quantity: 0 };
+//       }
+//       groupedByType[type].count += 1;
+//       iss.issuedMedicines.forEach(med => {
+//         groupedByType[type].quantity += med.quantityIssued;
+//       });
+//     });
+
+//     res.json({
+//       issuances,
+//       summary: {
+//         totalIssuances: issuances.length,
+//         totalQuantity,
+//         totalValue: Math.round(totalValue * 100) / 100,
+//         groupedByType,
+//         reportGeneratedAt: new Date(),
+//         period: {
+//           startDate: startDate || null,
+//           endDate: endDate || null
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Generate issuance report error:', error);
+//     res.status(500).json({ message: 'Failed to generate issuance report' });
+//   }
+// });
+
+// export default router;
