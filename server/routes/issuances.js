@@ -50,13 +50,21 @@ router.get('/', authenticateToken, [
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     // Execute query with pagination
+    // const skip = (parseInt(page) - 1) * parseInt(limit);
+    // const issuances = await Issuance.find(query)
+    //   .populate('medicineId', 'name category')
+    //   .populate('issuedBy', 'name')
+    //   .sort(sortOptions)
+    //   .skip(skip)
+    //   .limit(parseInt(limit));
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const issuances = await Issuance.find(query)
-      .populate('medicineId', 'name category')
+      .populate('issuedMedicines.medicineId', 'name category expiryDate')
       .populate('issuedBy', 'name')
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit));
+
 
     const total = await Issuance.countDocuments(query);
 
@@ -76,14 +84,98 @@ router.get('/', authenticateToken, [
 });
 
 // Issue medicine
+// router.post('/', authenticateToken, [
+//   body('medicineId').isMongoId().withMessage('Valid medicine ID required'),
+//   body('issuedTo').isIn(['GIZ Guest', 'AZI Guest', 'Employee']).withMessage('Invalid recipient type'),
+//   body('recipientName').trim().isLength({ min: 1, max: 200 }).withMessage('Recipient name required (max 200 chars)'),
+//   body('recipientID').trim().isLength({ min: 1, max: 100 }).withMessage('Recipient ID required (max 100 chars)'),
+//   body('quantityIssued').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+//   body('prescribedBy').trim().isLength({ min: 1, max: 200 }).withMessage('Prescribed by required (max 200 chars)'),
+//   body('notes').optional().trim().isLength({ max: 500 }).withMessage('Notes max 500 chars')
+// ], async (req, res) => {
+//   try {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+
+//     const { medicineId, quantityIssued } = req.body;
+
+//     // Check if medicine exists and has sufficient stock
+//     const medicine = await Medicine.findById(medicineId);
+//     if (!medicine || !medicine.isActive) {
+//       return res.status(404).json({ message: 'Medicine not found' });
+//     }
+
+//     if (medicine.quantity < quantityIssued) {
+//       return res.status(400).json({ 
+//         message: `Insufficient stock. Available: ${medicine.quantity}, Requested: ${quantityIssued}` 
+//       });
+//     }
+
+//     // Check if medicine is expired
+//     if (medicine.expiryDate <= new Date()) {
+//       return res.status(400).json({ message: 'Cannot issue expired medicine' });
+//     }
+
+//     // Create issuance record
+//     const issuance = new Issuance({
+//       ...req.body,
+//       issuedBy: req.user._id
+//     });
+//     await issuance.save();
+
+//     // Update medicine stock
+//     const oldQuantity = medicine.quantity;
+//     medicine.quantity -= quantityIssued;
+//     medicine.updatedBy = req.user._id;
+//     await medicine.save();
+
+//     // Populate issuance data
+//     // await issuance.populate(['medicineId issuedBy', 'name']);
+
+//     await issuance.populate([
+//   { path: 'medicineId', select: 'name category' },
+//   { path: 'issuedBy', select: 'name' }
+// ]);
+
+
+//     // Log activity
+//     await logActivity(
+//       'Issue', 
+//       'Medicine', 
+//       medicine._id, 
+//       req.user._id, 
+//       `Issued ${quantityIssued} units of ${medicine.name} to ${req.body.recipientName} (${req.body.issuedTo})`,
+//       { quantity: oldQuantity },
+//       { quantity: medicine.quantity },
+//       req
+//     );
+
+//     // Create issuance alert
+//     await createMedicineAlert('issued', medicine.name, medicine._id, req.user._id, {
+//       quantity: quantityIssued,
+//       recipient: req.body.recipientName
+//     });
+
+//     // Check and create stock alerts after issuance
+//     await checkAndCreateStockAlerts(medicine, req.user._id);
+
+//     res.status(201).json(issuance);
+//   } catch (error) {
+//     console.error('Issue medicine error:', error);
+//     res.status(500).json({ message: 'Failed to issue medicine' });
+//   }
+// });
 router.post('/', authenticateToken, [
-  body('medicineId').isMongoId().withMessage('Valid medicine ID required'),
+  body('issuedMedicines').isArray({ min: 1 }).withMessage('At least one medicine must be issued'),
+  body('issuedMedicines.*.medicineId').isMongoId().withMessage('Valid medicine ID required'),
+  body('issuedMedicines.*.quantityIssued').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
   body('issuedTo').isIn(['GIZ Guest', 'AZI Guest', 'Employee']).withMessage('Invalid recipient type'),
-  body('recipientName').trim().isLength({ min: 1, max: 200 }).withMessage('Recipient name required (max 200 chars)'),
-  body('recipientID').trim().isLength({ min: 1, max: 100 }).withMessage('Recipient ID required (max 100 chars)'),
-  body('quantityIssued').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-  body('prescribedBy').trim().isLength({ min: 1, max: 200 }).withMessage('Prescribed by required (max 200 chars)'),
-  body('notes').optional().trim().isLength({ max: 500 }).withMessage('Notes max 500 chars')
+  body('recipientName').trim().isLength({ min: 1, max: 200 }),
+  body('recipientID').trim().isLength({ min: 1, max: 100 }),
+  body('prescribedBy').trim().isLength({ min: 1, max: 200 }),
+  body('notes').optional().trim().isLength({ max: 500 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -91,74 +183,68 @@ router.post('/', authenticateToken, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { medicineId, quantityIssued } = req.body;
+    const { issuedMedicines } = req.body;
+    const issuedBy = req.user._id;
 
-    // Check if medicine exists and has sufficient stock
-    const medicine = await Medicine.findById(medicineId);
-    if (!medicine || !medicine.isActive) {
-      return res.status(404).json({ message: 'Medicine not found' });
-    }
+    for (const item of issuedMedicines) {
+      const medicine = await Medicine.findById(item.medicineId);
+      if (!medicine || !medicine.isActive) {
+        return res.status(404).json({ message: `Medicine not found: ${item.medicineId}` });
+      }
 
-    if (medicine.quantity < quantityIssued) {
-      return res.status(400).json({ 
-        message: `Insufficient stock. Available: ${medicine.quantity}, Requested: ${quantityIssued}` 
+      if (medicine.quantity < item.quantityIssued) {
+        return res.status(400).json({
+          message: `Insufficient stock for ${medicine.name}. Available: ${medicine.quantity}, Requested: ${item.quantityIssued}`
+        });
+      }
+
+      if (medicine.expiryDate <= new Date()) {
+        return res.status(400).json({ message: `${medicine.name} is expired` });
+      }
+
+      medicine.quantity -= item.quantityIssued;
+      medicine.updatedBy = issuedBy;
+      await medicine.save();
+
+      await logActivity(
+        'Issue',
+        'Medicine',
+        medicine._id,
+        issuedBy,
+        `Issued ${item.quantityIssued} units of ${medicine.name}`,
+        { quantity: medicine.quantity + item.quantityIssued },
+        { quantity: medicine.quantity },
+        req
+      );
+
+      await createMedicineAlert('issued', medicine.name, medicine._id, issuedBy, {
+        quantity: item.quantityIssued,
+        recipient: req.body.recipientName
       });
+
+      await checkAndCreateStockAlerts(medicine, issuedBy);
     }
 
-    // Check if medicine is expired
-    if (medicine.expiryDate <= new Date()) {
-      return res.status(400).json({ message: 'Cannot issue expired medicine' });
-    }
-
-    // Create issuance record
     const issuance = new Issuance({
-      ...req.body,
-      issuedBy: req.user._id
+      issuedMedicines,
+      issuedTo: req.body.issuedTo,
+      recipientName: req.body.recipientName,
+      recipientID: req.body.recipientID,
+      prescribedBy: req.body.prescribedBy,
+      notes: req.body.notes,
+      issuedBy
     });
+
     await issuance.save();
-
-    // Update medicine stock
-    const oldQuantity = medicine.quantity;
-    medicine.quantity -= quantityIssued;
-    medicine.updatedBy = req.user._id;
-    await medicine.save();
-
-    // Populate issuance data
-    // await issuance.populate(['medicineId issuedBy', 'name']);
-
-    await issuance.populate([
-  { path: 'medicineId', select: 'name category' },
-  { path: 'issuedBy', select: 'name' }
-]);
-
-
-    // Log activity
-    await logActivity(
-      'Issue', 
-      'Medicine', 
-      medicine._id, 
-      req.user._id, 
-      `Issued ${quantityIssued} units of ${medicine.name} to ${req.body.recipientName} (${req.body.issuedTo})`,
-      { quantity: oldQuantity },
-      { quantity: medicine.quantity },
-      req
-    );
-
-    // Create issuance alert
-    await createMedicineAlert('issued', medicine.name, medicine._id, req.user._id, {
-      quantity: quantityIssued,
-      recipient: req.body.recipientName
-    });
-
-    // Check and create stock alerts after issuance
-    await checkAndCreateStockAlerts(medicine, req.user._id);
 
     res.status(201).json(issuance);
   } catch (error) {
-    console.error('Issue medicine error:', error);
-    res.status(500).json({ message: 'Failed to issue medicine' });
+    console.error('Multi-medicine issuance error:', error);
+    res.status(500).json({ message: 'Failed to issue medicines' });
   }
 });
+
+
 
 // Get single issuance
 router.get('/:id', authenticateToken, async (req, res) => {
