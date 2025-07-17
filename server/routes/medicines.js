@@ -28,9 +28,11 @@ router.get('/', authenticateToken, [
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { supplier: { $regex: search, $options: 'i' } },
-        { batchNumber: { $regex: search, $options: 'i' } }
+        { batchNumber: { $regex: search, $options: 'i' } },
+        { barcode: { $regex: search, $options: 'i' } }
       ];
     }
+
     if (lowStock === 'true') query.$expr = { $lte: ['$quantity', '$minQuantity'] };
     if (expiring === 'true') {
       const thirtyDaysFromNow = new Date();
