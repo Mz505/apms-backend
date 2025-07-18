@@ -100,7 +100,7 @@ router.post('/login', [
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '6h' }
     );
 
     // Log activity
