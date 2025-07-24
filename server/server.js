@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
+// import settingsRoutes from './routes/settings.js';
 // Import routes
 import authRoutes from './routes/auth.js';
 import medicineRoutes from './routes/medicines.js';
@@ -22,22 +23,8 @@ const PORT = process.env.PORT || 5000;
 
 // Security middleware
 app.use(helmet());
-// app.use(cors({
-//   origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173',
-//   credentials: true
-// }));
-const allowedOrigins = [
-  'https://apms-frontend-production.up.railway.app',
-  'https://68624c2cad3d18efe2fa10a7--cerulean-quokka-b4a55e.netlify.app'
-];
-
-
 app.use(cors({
-  origin: (origin, callback) => {
-    console.log('Request Origin:', origin);
-    // Accept all for now, but you can validate origin here if needed
-    callback(null, true);
-  },
+  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173',
   credentials: true
 }));
 
@@ -66,23 +53,19 @@ app.use('/api/users', userRoutes);
 app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'APMS API is running successfully!' });
 });
-app.get('/', (req, res) => {
-  res.status(200).json({ message: 'Backend is running but no route is defined at root. Use /api/* endpoints.' });
-});
+
+
+// const settingsRoutes = require('./routes/settings');
+// app.use('/api/settings', settingsRoutes);
+
+
 
 // Error handling middleware
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({ 
-//     message: 'Something went wrong!', 
-//     error: process.env.NODE_ENV === 'production' ? {} : err.stack 
-//   });
-// });
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ 
     message: 'Something went wrong!', 
-    error: err.stack // You SHOULD see the error now
+    error: process.env.NODE_ENV === 'production' ? {} : err.stack 
   });
 });
 
