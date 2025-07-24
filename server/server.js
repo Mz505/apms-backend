@@ -5,7 +5,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
- // import settingsRoutes from './routes/settings.js';
 // Import routes
 import authRoutes from './routes/auth.js';
 import medicineRoutes from './routes/medicines.js';
@@ -23,15 +22,21 @@ const PORT = process.env.PORT || 5000;
 
 // Security middleware
 app.use(helmet());
+
+// ✅ Updated CORS config
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    'https://6881c78741bad5000888b54a--cerulean-quokka-b4a55e.netlify.app'
+  ],
   credentials: true
 }));
+app.options('*', cors()); // ✅ Handle preflight requests
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100
 });
 app.use('/api', limiter);
 
@@ -54,18 +59,12 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ message: 'APMS API is running successfully!' });
 });
 
-
- // const settingsRoutes = require('./routes/settings');
- // app.use('/api/settings', settingsRoutes);
-
-
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    message: 'Something went wrong!', 
-    error: process.env.NODE_ENV === 'production' ? {} : err.stack 
+  res.status(500).json({
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'production' ? {} : err.stack
   });
 });
 
@@ -74,7 +73,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Connect to MongoDB
+// Connect to MongoDB and start server
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
