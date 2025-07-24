@@ -5,7 +5,7 @@ import Medicine from '../models/Medicine.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { logActivity } from '../middleware/logging.js';
 import { createMedicineAlert, checkAndCreateStockAlerts } from '../middleware/alertService.js';
-
+// import ActivityLog from '../models/ActivityLog.js'; 
 const router = express.Router();
 
 // Get all issuances with filtering and pagination
@@ -48,15 +48,6 @@ router.get('/', authenticateToken, [
     // Sort options
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    // Execute query with pagination
-    // const skip = (parseInt(page) - 1) * parseInt(limit);
-    // const issuances = await Issuance.find(query)
-    //   .populate('medicineId', 'name category')
-    //   .populate('issuedBy', 'name')
-    //   .sort(sortOptions)
-    //   .skip(skip)
-    //   .limit(parseInt(limit));
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const issuances = await Issuance.find(query)
       .populate('issuedMedicines.medicineId', 'name category expiryDate')
@@ -263,5 +254,51 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch issuance' });
   }
 });
+
+
+
+// router.delete('/:id', authenticateToken, async (req, res) => {
+//   try {
+//     const deleted = await Issuance.findByIdAndDelete(req.params.id);
+//     if (!deleted) {
+//       return res.status(404).json({ message: 'Issuance not found' });
+//     }
+//     res.json({ message: 'Issuance deleted successfully' });
+//   } catch (error) {
+//     console.error('Delete error:', error);
+//     res.status(500).json({ message: 'Failed to delete issuance' });
+//   }
+// });
+
+
+
+    router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const deletedIssuance = await Issuance.findByIdAndDelete(req.params.id);
+
+    if (!deletedIssuance) {
+      return res.status(404).json({ message: 'Issuance not found' });
+    }
+
+    // Log activity correctly as a function call
+    await logActivity(
+      'Delete',
+      'Issuance',
+      deletedIssuance._id,
+      req.user._id,
+      `Deleted issuance record for ${deletedIssuance.recipientName || 'Unknown Recipient'}`,
+      deletedIssuance.toObject(), // oldData
+      null, // newData
+      req
+    );
+
+    res.json({ message: 'Issuance deleted successfully' });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ message: 'Failed to delete issuance' });
+  }
+});
+
+
 
 export default router;
