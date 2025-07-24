@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
- import settingsRoutes from './routes/settings.js';
+ // import settingsRoutes from './routes/settings.js';
 // Import routes
 import authRoutes from './routes/auth.js';
 import medicineRoutes from './routes/medicines.js';
@@ -55,8 +55,8 @@ app.get('/api/health', (req, res) => {
 });
 
 
- const settingsRoutes = require('./routes/settings');
- app.use('/api/settings', settingsRoutes);
+ // const settingsRoutes = require('./routes/settings');
+ // app.use('/api/settings', settingsRoutes);
 
 
 
