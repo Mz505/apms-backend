@@ -27,7 +27,7 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://6881c78741bad5000888b54a--cerulean-quokka-b4a55e.netlify.app'
+    'https://azipms.netlify.app'
   ],
   credentials: true
 }));
